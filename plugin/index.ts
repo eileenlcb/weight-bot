@@ -91,12 +91,15 @@ function createWeightTools(): AnyAgentTool[] {
   ];
 }
 
-function createMealTools(): AnyAgentTool[] {
+function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
+  const addMealDesc = imageEnabled
+    ? "记录用户的一餐饮食。当用户发送食物图片或描述吃了什么时，分析食物内容，估算卡路里和营养成分，然后调用此工具记录。"
+    : "记录用户的一餐饮食。当用户用文字描述吃了什么时，根据描述估算卡路里和营养成分，然后调用此工具记录。注意：图片识别功能未开启，如果用户发送了食物图片，请提醒用户用文字描述食物内容和大致份量。";
+
   return [
     {
       name: "add_meal_record",
-      description:
-        "记录用户的一餐饮食。当用户发送食物图片或描述吃了什么时，分析食物内容，估算卡路里和营养成分，然后调用此工具记录。",
+      description: addMealDesc,
       input: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         meal_type: Type.Optional(
@@ -199,20 +202,21 @@ const plugin = {
 
   register(api: OpenClawPluginApi) {
     const config = loadConfig();
+    const imageEnabled = isFeatureEnabled(config, "image_recognition");
+
     const tools = createWeightTools();
     for (const tool of tools) {
       api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
     }
 
-    if (isFeatureEnabled(config, "meal_tracking")) {
-      const mealTools = createMealTools();
-      for (const tool of mealTools) {
-        api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
-      }
-      api.logger.info(`Registered ${tools.length + mealTools.length} tools (meal tracking ON)`);
-    } else {
-      api.logger.info(`Registered ${tools.length} weight tools (meal tracking OFF)`);
+    const mealTools = createMealTools(imageEnabled);
+    for (const tool of mealTools) {
+      api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
     }
+
+    api.logger.info(
+      `Registered ${tools.length + mealTools.length} tools (image_recognition: ${imageEnabled ? "ON" : "OFF"})`
+    );
   },
 };
 

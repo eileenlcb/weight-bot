@@ -44,24 +44,23 @@ def init_db():
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
     """)
-    if feature_enabled("meal_tracking"):
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS meal_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            meal_type TEXT NOT NULL DEFAULT 'other',
-            food_items TEXT NOT NULL,
-            estimated_calories REAL NOT NULL DEFAULT 0,
-            protein_g REAL NOT NULL DEFAULT 0,
-            fat_g REAL NOT NULL DEFAULT 0,
-            carb_g REAL NOT NULL DEFAULT 0,
-            fiber_g REAL NOT NULL DEFAULT 0,
-            image_description TEXT,
-            advice TEXT,
-            recorded_at TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS meal_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        meal_type TEXT NOT NULL DEFAULT 'other',
+        food_items TEXT NOT NULL,
+        estimated_calories REAL NOT NULL DEFAULT 0,
+        protein_g REAL NOT NULL DEFAULT 0,
+        fat_g REAL NOT NULL DEFAULT 0,
+        carb_g REAL NOT NULL DEFAULT 0,
+        fiber_g REAL NOT NULL DEFAULT 0,
+        image_description TEXT,
+        advice TEXT,
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
     conn.commit()
     conn.close()
 
@@ -247,8 +246,6 @@ def tool_get_weight_stats(data: StatsInput):
 
 @app.post("/tool/add_meal_record")
 def tool_add_meal_record(data: MealRecordInput):
-    if not feature_enabled("meal_tracking"):
-        return {"ok": False, "message": "饮食记录功能未开启，请在 config.json 中设置 meal_tracking 为 true"}
     recorded_at = data.recorded_at or datetime.now().isoformat()
     food_items_json = json.dumps(
         [item.model_dump() for item in data.food_items], ensure_ascii=False
@@ -306,8 +303,6 @@ def tool_add_meal_record(data: MealRecordInput):
 
 @app.post("/tool/get_daily_calories")
 def tool_get_daily_calories(data: DailyCaloriesInput):
-    if not feature_enabled("meal_tracking"):
-        return {"ok": False, "message": "饮食记录功能未开启，请在 config.json 中设置 meal_tracking 为 true"}
     target_date = data.date or datetime.now().strftime("%Y-%m-%d")
 
     conn = get_conn()
@@ -368,8 +363,6 @@ def tool_get_daily_calories(data: DailyCaloriesInput):
 
 @app.post("/tool/get_meal_stats")
 def tool_get_meal_stats(data: MealStatsInput):
-    if not feature_enabled("meal_tracking"):
-        return {"ok": False, "message": "饮食记录功能未开启，请在 config.json 中设置 meal_tracking 为 true"}
     since = (datetime.now() - timedelta(days=data.days)).strftime("%Y-%m-%d")
 
     conn = get_conn()

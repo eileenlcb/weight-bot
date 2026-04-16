@@ -188,7 +188,7 @@ openclaw gateway restart
 ```json
 {
   "features": {
-    "meal_tracking": false,
+    "meal_tracking": true,
     "image_recognition": false
   }
 }
@@ -196,8 +196,11 @@ openclaw gateway restart
 
 | 配置项 | 说明 | 默认 | 要求 |
 |--------|------|------|------|
-| `meal_tracking` | 饮食记录 + 卡路里统计 | `false` | 建议 4G+ 内存 |
-| `image_recognition` | 食物图片识别 | `false` | 需要多模态模型 + 4G+ 内存 |
+| `meal_tracking` | 饮食记录 + 卡路里统计（文字描述） | `true` | 无特殊要求 |
+| `image_recognition` | 食物图片自动识别 | `false` | 需要多模态模型 + 4G+ 内存 |
+
+- `meal_tracking: true` + `image_recognition: false`：用户可以用文字描述吃了什么，LLM 估算卡路里（2G 服务器可用）
+- `meal_tracking: true` + `image_recognition: true`：用户可以直接发食物照片，LLM 自动识别（需要 4G+ 内存）
 
 **开启方法：** 修改 `config.json` 后，重新执行 `bash deploy.sh` 即可。
 
