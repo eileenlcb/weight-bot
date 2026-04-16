@@ -1,7 +1,25 @@
 import type { OpenClawPluginApi, AnyAgentTool } from "openclaw/plugin-sdk";
 import { Type } from "@sinclair/typebox";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const API_BASE = "http://127.0.0.1:8000";
+
+function loadConfig(): Record<string, unknown> {
+  try {
+    const dir = dirname(fileURLToPath(import.meta.url));
+    const configPath = resolve(dir, "..", "config.json");
+    return JSON.parse(readFileSync(configPath, "utf-8"));
+  } catch {
+    return { features: { meal_tracking: false, image_recognition: false } };
+  }
+}
+
+function isFeatureEnabled(config: Record<string, unknown>, name: string): boolean {
+  const features = config.features as Record<string, boolean> | undefined;
+  return features?.[name] ?? false;
+}
 
 async function callApi(path: string, body: Record<string, unknown>) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -12,7 +30,7 @@ async function callApi(path: string, body: Record<string, unknown>) {
   return await res.json();
 }
 
-function createWeightTools(api: OpenClawPluginApi): AnyAgentTool[] {
+function createWeightTools(): AnyAgentTool[] {
   return [
     {
       name: "add_weight",
@@ -70,6 +88,11 @@ function createWeightTools(api: OpenClawPluginApi): AnyAgentTool[] {
         }
       },
     },
+  ];
+}
+
+function createMealTools(): AnyAgentTool[] {
+  return [
     {
       name: "add_meal_record",
       description:
@@ -175,11 +198,21 @@ const plugin = {
   description: "Weight tracking and meal calorie estimation tools",
 
   register(api: OpenClawPluginApi) {
-    const tools = createWeightTools(api);
+    const config = loadConfig();
+    const tools = createWeightTools();
     for (const tool of tools) {
       api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
     }
-    api.logger.info(`Registered ${tools.length} weight tools`);
+
+    if (isFeatureEnabled(config, "meal_tracking")) {
+      const mealTools = createMealTools();
+      for (const tool of mealTools) {
+        api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
+      }
+      api.logger.info(`Registered ${tools.length + mealTools.length} tools (meal tracking ON)`);
+    } else {
+      api.logger.info(`Registered ${tools.length} weight tools (meal tracking OFF)`);
+    }
   },
 };
 

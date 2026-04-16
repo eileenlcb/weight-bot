@@ -1,0 +1,6 @@
+{
+  "features": {
+    "meal_tracking": false,
+    "image_recognition": false
+  }
+}

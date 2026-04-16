@@ -17,9 +17,12 @@ SQLite (持久化存储)
 ```
 
 **功能清单：**
-- 体重记录 / 查询 / 趋势统计
-- 餐食图片识别 → 卡路里估算 → 营养建议
-- 每日 / 多日饮食统计
+- 体重记录 / 查询 / 趋势统计（默认开启）
+- 餐食图片识别 → 卡路里估算 → 营养建议（可配置，默认关闭）
+- 每日 / 多日饮食统计（可配置，默认关闭）
+
+> 饮食相关功能需要多模态图片处理，建议 4G 以上内存的服务器开启。
+> 通过 `config.json` 控制功能开关，无需改代码。
 
 ---
 
@@ -151,6 +154,7 @@ systemctl status weight-bot
 
 ```bash
 cp -r ~/weight-bot/plugin ~/weight-tools-plugin
+cp ~/weight-bot/config.json ~/weight-tools-plugin/
 cd ~/weight-tools-plugin
 npm install
 ```
@@ -167,7 +171,7 @@ openclaw plugins install -l ~/weight-tools-plugin
 openclaw plugins inspect weight-tools
 ```
 
-应能看到 6 个工具：`add_weight`, `get_latest_weight`, `get_weight_stats`, `add_meal_record`, `get_daily_calories`, `get_meal_stats`。
+默认注册 3 个体重工具。开启 `meal_tracking` 后会注册 6 个工具。
 
 ### 4. 重启 Gateway 使插件生效
 
@@ -177,7 +181,31 @@ openclaw gateway restart
 
 ---
 
-## 七、配置 AI Agent 人设（System Prompt）
+## 七、功能配置（config.json）
+
+项目根目录的 `config.json` 控制功能开关：
+
+```json
+{
+  "features": {
+    "meal_tracking": false,
+    "image_recognition": false
+  }
+}
+```
+
+| 配置项 | 说明 | 默认 | 要求 |
+|--------|------|------|------|
+| `meal_tracking` | 饮食记录 + 卡路里统计 | `false` | 建议 4G+ 内存 |
+| `image_recognition` | 食物图片识别 | `false` | 需要多模态模型 + 4G+ 内存 |
+
+**开启方法：** 修改 `config.json` 后，重新执行 `bash deploy.sh` 即可。
+
+**注意：** 修改 config.json 后需要同时同步到插件目录并重启 Gateway，`deploy.sh` 会自动处理。
+
+---
+
+## 八、配置 AI Agent 人设（System Prompt）
 
 通过 OpenClaw 配置 Agent 的系统提示词，让 AI 知道如何处理图片和饮食记录：
 
@@ -213,7 +241,7 @@ EOF
 
 ---
 
-## 八、测试验证
+## 九、测试验证
 
 ### 体重功能测试
 
@@ -263,7 +291,7 @@ curl -X POST http://localhost:8000/tool/get_daily_calories \
 
 ---
 
-## 九、查看数据库
+## 十、查看数据库
 
 ```bash
 sqlite3 ~/weight-bot/weight.db
@@ -283,7 +311,7 @@ WHERE recorded_at >= date('now');
 
 ---
 
-## 十、常见问题
+## 十一、常见问题
 
 | 问题 | 解决方案 |
 |------|---------|
@@ -302,8 +330,10 @@ WHERE recorded_at >= date('now');
 ```
 weight-bot/
 ├── app.py                   # FastAPI 后端（体重 + 饮食 API）
+├── config.json              # 功能开关配置
+├── deploy.sh                # 一键部署脚本
 ├── plugin/
-│   ├── index.ts             # OpenClaw 工具插件
+│   ├── index.ts             # OpenClaw 工具插件（根据 config 动态注册）
 │   ├── package.json         # 插件依赖
 │   └── openclaw.plugin.json # 插件元数据
 ├── requirements.txt         # Python 依赖

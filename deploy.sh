@@ -5,24 +5,34 @@ echo "=== Weight Bot Deploy Script ==="
 
 cd ~/weight-bot
 
-echo "[1/5] Pulling latest code..."
+echo "[1/6] Pulling latest code..."
 git pull
 
-echo "[2/5] Installing Python dependencies..."
+echo "[2/6] Checking config..."
+if [ ! -f config.json ]; then
+    echo "  config.json not found, creating default (meal_tracking OFF)..."
+    cp config.json.example config.json 2>/dev/null || echo '{"features":{"meal_tracking":false,"image_recognition":false}}' > config.json
+fi
+echo "  Current config:"
+cat config.json
+echo ""
+
+echo "[3/6] Installing Python dependencies..."
 source venv/bin/activate
 pip install -q -r requirements.txt
 
-echo "[3/5] Updating OpenClaw plugin..."
+echo "[4/6] Updating OpenClaw plugin..."
 cp plugin/* ~/weight-tools-plugin/
+cp config.json ~/weight-tools-plugin/
 cd ~/weight-tools-plugin
 npm install --silent
 openclaw plugins install -l ~/weight-tools-plugin
 
-echo "[4/5] Restarting FastAPI service..."
+echo "[5/6] Restarting FastAPI service..."
 cd ~/weight-bot
 systemctl restart weight-bot
 
-echo "[5/5] Restarting OpenClaw Gateway..."
+echo "[6/6] Restarting OpenClaw Gateway..."
 openclaw gateway restart
 
 echo ""
