@@ -91,8 +91,14 @@ npx -y @tencent-weixin/openclaw-weixin-cli@latest install
 
 ```bash
 cd ~
-git clone <your-repo-url> weight-bot
+git clone https://github.com/eileenlcb/weight-bot.git
 cd ~/weight-bot
+```
+
+如果已有旧代码，先备份 weight.db 再拉取：
+```bash
+cp ~/weight-bot/weight.db ~/weight.db.bak
+cd ~/weight-bot && git pull
 ```
 
 ### 2. 创建虚拟环境 & 安装依赖
@@ -106,7 +112,7 @@ pip install -r requirements.txt
 ### 3. 测试启动
 
 ```bash
-cd ~/weight-bot/src
+cd ~/weight-bot
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
@@ -122,7 +128,7 @@ After=network.target
 
 [Service]
 User=root
-WorkingDirectory=/root/weight-bot/src
+WorkingDirectory=/root/weight-bot
 Environment="PATH=/root/weight-bot/venv/bin"
 ExecStart=/root/weight-bot/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
 Restart=always
@@ -260,7 +266,7 @@ curl -X POST http://localhost:8000/tool/get_daily_calories \
 ## 九、查看数据库
 
 ```bash
-sqlite3 ~/weight-bot/src/weight.db
+sqlite3 ~/weight-bot/weight.db
 ```
 
 ```sql
@@ -295,12 +301,12 @@ WHERE recorded_at >= date('now');
 
 ```
 weight-bot/
-├── src/
-│   └── app.py              # FastAPI 后端（体重 + 饮食 API）
+├── app.py                   # FastAPI 后端（体重 + 饮食 API）
 ├── plugin/
 │   ├── index.ts             # OpenClaw 工具插件
 │   ├── package.json         # 插件依赖
 │   └── openclaw.plugin.json # 插件元数据
 ├── requirements.txt         # Python 依赖
+├── .gitignore               # Git 忽略规则
 └── setup.md                 # 本部署文档
 ```
