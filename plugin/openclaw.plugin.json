@@ -5,5 +5,10 @@
   "type": "module",
   "openclaw": {
     "extensions": ["./index.ts"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
   }
 }
