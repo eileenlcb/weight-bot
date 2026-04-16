@@ -212,12 +212,12 @@ const plugin = {
 
     const tools = createWeightTools();
     for (const tool of tools) {
-      api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
+      api.registerTool(tool as unknown as AnyAgentTool);
     }
 
     const mealTools = createMealTools(imageEnabled);
     for (const tool of mealTools) {
-      api.registerTool(tool as unknown as AnyAgentTool, { optional: true });
+      api.registerTool(tool as unknown as AnyAgentTool);
     }
 
     api.logger.info(
