@@ -7,13 +7,19 @@ import { fileURLToPath } from "node:url";
 const API_BASE = "http://127.0.0.1:8000";
 
 function loadConfig(): Record<string, unknown> {
-  try {
-    const dir = dirname(fileURLToPath(import.meta.url));
-    const configPath = resolve(dir, "..", "config.json");
-    return JSON.parse(readFileSync(configPath, "utf-8"));
-  } catch {
-    return { features: { meal_tracking: false, image_recognition: false } };
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(dir, "config.json"),
+    resolve(dir, "..", "config.json"),
+  ];
+  for (const p of candidates) {
+    try {
+      return JSON.parse(readFileSync(p, "utf-8"));
+    } catch {
+      // try next
+    }
   }
+  return { features: { meal_tracking: false, image_recognition: false } };
 }
 
 function isFeatureEnabled(config: Record<string, unknown>, name: string): boolean {
