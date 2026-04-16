@@ -1,0 +1,11 @@
+{
+  "name": "weight-tools-plugin",
+  "version": "2.0.0",
+  "type": "module",
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}

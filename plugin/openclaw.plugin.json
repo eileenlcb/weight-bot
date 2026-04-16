@@ -1,0 +1,9 @@
+{
+  "id": "weight-tools",
+  "name": "weight-tools-plugin",
+  "version": "2.0.0",
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./index.ts"]
+  }
+}
