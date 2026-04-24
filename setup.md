@@ -37,11 +37,8 @@ apt update && apt install -y git curl nodejs npm python3 python3-venv sqlite3
 ### 2. Swap（2G 内存以下的服务器必须加）
 
 ```bash
-fallocate -l 2G /swapfile
-chmod 600 /swapfile
-mkswap /swapfile
-swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+
 ```
 
 ---

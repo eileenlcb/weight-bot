@@ -41,7 +41,7 @@ function createWeightTools(): AnyAgentTool[] {
     {
       name: "add_weight",
       description: "记录用户体重。当用户告诉你体重数据时调用此工具。",
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         weight: Type.Number({ description: "体重数值，单位 kg" }),
         recorded_at: Type.Optional(
@@ -63,7 +63,7 @@ function createWeightTools(): AnyAgentTool[] {
     {
       name: "get_latest_weight",
       description: "获取用户最近一条体重记录。",
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
       }),
       execute: async (args: Record<string, unknown>) => {
@@ -79,7 +79,7 @@ function createWeightTools(): AnyAgentTool[] {
       name: "get_weight_stats",
       description:
         "获取用户一段时间内的体重统计（平均、最高、最低、变化趋势）。",
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         days: Type.Optional(
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
@@ -106,7 +106,7 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
     {
       name: "add_meal_record",
       description: addMealDesc,
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         meal_type: Type.Optional(
           Type.String({
@@ -164,7 +164,7 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       name: "get_daily_calories",
       description:
         "获取用户某天的饮食记录和总热量摄入。查看今天或指定日期吃了什么、摄入了多少卡路里。",
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         date: Type.Optional(
           Type.String({ description: "查询日期 YYYY-MM-DD，为空则查今天" })
@@ -183,7 +183,7 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       name: "get_meal_stats",
       description:
         "获取用户一段时间内的饮食统计（每日平均卡路里、最高最低、每日明细）。",
-      input: Type.Object({
+      parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
         days: Type.Optional(
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
