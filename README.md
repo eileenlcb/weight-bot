@@ -1,76 +1,82 @@
 # Weight Bot
 
-基于 OpenClaw + 微信的体重和饮食记录助手。
+A WeChat-based weight and meal tracking assistant powered by OpenClaw, FastAPI, and SQLite.
 
-它的流程很简单：微信消息进入 OpenClaw，OpenClaw 调用本项目提供的工具插件，插件再把数据写入 FastAPI 后端，最后存到 SQLite。
+Incoming WeChat messages are routed through OpenClaw. OpenClaw calls the local `weight-tools` plugin, the plugin forwards tool calls to the FastAPI backend, and the backend stores records in SQLite.
 
-## 功能
+## Features
 
-- 记录体重
-- 查询最近一次体重
-- 统计一段时间内的体重变化
-- 记录饮食和估算热量
-- 查询当天热量摄入
-- 统计多日饮食数据
-- 可选：食物图片识别
+- Log weight records
+- Query the latest weight
+- Calculate weight stats and trends
+- Log meals and estimated calories
+- Query daily calorie intake
+- Calculate multi-day meal stats
+- Optional food image recognition
 
-## 架构
+## Architecture
 
 ```text
-微信
-  ↓
+WeChat
+  |
 @tencent-weixin/openclaw-weixin
-  ↓
+  |
 OpenClaw Gateway
-  ↓
+  |
 weight-tools-plugin
-  ↓ HTTP POST
+  |
 FastAPI
-  ↓
+  |
 SQLite
 ```
 
-## 目录
+## Repository Layout
 
 ```text
 weight-bot/
-├── app.py                   # FastAPI 后端
-├── config.json              # 功能开关
-├── deploy.sh                # 更新部署脚本
+├── app.py                   # FastAPI backend
+├── config.json              # Feature flags
+├── deploy.sh                # Update/deploy script
 ├── plugin/
-│   ├── index.ts             # OpenClaw 工具插件
+│   ├── index.ts             # OpenClaw tool plugin
 │   ├── package.json
 │   └── openclaw.plugin.json
 ├── requirements.txt
 └── README.md
 ```
 
-## 首次安装
+## First-Time Installation
 
-下面默认服务器目录是 `~/weight-bot`，运行用户是 `root`。如果你不是 root，systemd 文件里的路径和用户要跟着改。
+The commands below assume:
 
-### 1. 安装系统依赖
+- The project lives at `~/weight-bot`
+- The backend runs as `root`
+- The backend service name is `weight-bot`
+
+If you deploy under another user or path, update the systemd file accordingly.
+
+### 1. Install System Packages
 
 ```bash
 apt update
 apt install -y git curl nodejs npm python3 python3-venv sqlite3
 ```
 
-小内存机器建议先加 swap。2G 内存跑文字记录够用，开启图片识别建议 4G 以上。
+For small servers, add swap before enabling image recognition. Text-only tracking works on small machines; image recognition is better on 4 GB+ RAM.
 
-### 2. 安装 OpenClaw
+### 2. Install OpenClaw
 
 ```bash
 curl -fsSL https://openclaw.ai/install.sh | bash
 ```
 
-安装时建议选择：
+Recommended setup choices:
 
 - Provider: `Qwen Cloud`
 - Auth: `Standard API Key`
 - Model: `Qwen 3.5 Plus`
 
-启动 Gateway：
+Install and start the Gateway:
 
 ```bash
 sudo loginctl enable-linger $(whoami)
@@ -80,23 +86,23 @@ openclaw gateway install
 openclaw gateway status
 ```
 
-确认输出里有：
+Expected status:
 
 ```text
 Runtime: running
 RPC probe: ok
 ```
 
-### 3. 连接微信
+### 3. Connect WeChat
 
 ```bash
 export NODE_OPTIONS="--max-old-space-size=512"
 npx -y @tencent-weixin/openclaw-weixin-cli@latest install
 ```
 
-终端里会出现二维码，用微信扫码授权。
+Scan the QR code in the terminal with WeChat.
 
-### 4. 部署 FastAPI 后端
+### 4. Deploy the FastAPI Backend
 
 ```bash
 cd ~
@@ -108,25 +114,25 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-先手动跑一次：
+Run a quick manual check:
 
 ```bash
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-访问：
+Open:
 
 ```text
-http://<服务器 IP>:8000
+http://<server-ip>:8000
 ```
 
-正常会返回：
+Expected response:
 
 ```json
 {"ok": true, "message": "Weight Bot API is running"}
 ```
 
-确认没问题后，按 `Ctrl+C` 停掉，改用 systemd 常驻运行：
+Stop the manual server with `Ctrl+C`, then create a systemd service:
 
 ```bash
 cat > /etc/systemd/system/weight-bot.service << 'EOF'
@@ -150,7 +156,7 @@ systemctl enable --now weight-bot
 systemctl status weight-bot
 ```
 
-### 5. 安装 OpenClaw 工具插件
+### 5. Install the OpenClaw Tool Plugin
 
 ```bash
 rm -rf ~/weight-tools-plugin
@@ -165,11 +171,11 @@ openclaw gateway restart
 openclaw plugins inspect weight-tools
 ```
 
-`inspect` 里能看到 `weight-tools` 和工具列表就算成功。
+`inspect` should show the `weight-tools` plugin and its registered tools.
 
-### 6. 配置 Agent 提示词
+### 6. Configure the Agent Prompt
 
-可以用这段作为 OpenClaw 的系统提示词，让它更稳定地调用工具：
+This prompt is intentionally Chinese because the WeChat bot is expected to talk to Chinese users.
 
 ```bash
 openclaw config set agent.systemPrompt "$(cat <<'EOF'
@@ -189,9 +195,9 @@ EOF
 openclaw gateway restart
 ```
 
-## 配置
+## Configuration
 
-`config.json` 控制功能开关：
+`config.json` controls feature flags:
 
 ```json
 {
@@ -202,38 +208,38 @@ openclaw gateway restart
 }
 ```
 
-| 配置 | 作用 | 建议 |
+| Key | Description | Recommendation |
 | --- | --- | --- |
-| `meal_tracking` | 饮食记录和热量统计 | 一般保持 `true` |
-| `image_recognition` | 食物图片识别 | 小内存机器改成 `false` |
+| `meal_tracking` | Meal logging and calorie stats | Usually keep `true` |
+| `image_recognition` | Food image recognition | Set to `false` on small servers |
 
-改完 `config.json` 后，需要把它同步到插件目录，并重启 OpenClaw Gateway。最省事的方式是跑：
-
-```bash
-cd ~/weight-bot
-bash deploy.sh
-```
-
-## 更新部署
-
-代码更新后，推荐直接跑：
+After changing `config.json`, sync it into the plugin directory and restart OpenClaw Gateway. The easiest way is:
 
 ```bash
 cd ~/weight-bot
 bash deploy.sh
 ```
 
-脚本会做这些事：
+## Updating After Code Changes
 
-- 拉取 `origin/main`
-- 安装 Python 依赖
-- 重建 `~/weight-tools-plugin`
-- 重新安装 OpenClaw 工具插件
-- 重启 `weight-bot` FastAPI 服务
-- 重启 OpenClaw Gateway
-- 测试后端 API
+For normal updates, run:
 
-如果想手动执行，用这组命令：
+```bash
+cd ~/weight-bot
+bash deploy.sh
+```
+
+The script will:
+
+- Pull `origin/main`
+- Install Python dependencies
+- Rebuild `~/weight-tools-plugin`
+- Reinstall the OpenClaw tool plugin
+- Restart the `weight-bot` FastAPI service
+- Restart OpenClaw Gateway
+- Test the backend API
+
+Manual update steps:
 
 ```bash
 cd ~/weight-bot
@@ -258,13 +264,13 @@ openclaw plugins list --enabled --verbose
 openclaw plugins inspect weight-tools
 ```
 
-检查点：
+Check these after updating:
 
-- `openclaw plugins inspect weight-tools` 里版本是最新的
-- `source` 指向 `~/weight-tools-plugin`
-- 微信或 TUI 里重新发一句测试消息
+- `openclaw plugins inspect weight-tools` shows the latest plugin version
+- The plugin source points to `~/weight-tools-plugin`
+- A fresh test message works in WeChat or OpenClaw TUI
 
-如果只是改了 `app.py`，可以只执行：
+If only `app.py` changed:
 
 ```bash
 cd ~/weight-bot
@@ -274,9 +280,9 @@ pip install -r requirements.txt
 systemctl restart weight-bot
 ```
 
-如果只是改了 `plugin/index.ts` 或 `config.json`，需要重新安装插件并重启 Gateway。
+If `plugin/index.ts` or `config.json` changed, reinstall the plugin and restart OpenClaw Gateway.
 
-## 测试
+## Testing
 
 ### API
 
@@ -284,7 +290,7 @@ systemctl restart weight-bot
 curl -s http://localhost:8000/ | python3 -m json.tool
 ```
 
-记录体重：
+Log a weight record:
 
 ```bash
 curl -X POST http://localhost:8000/tool/add_weight \
@@ -292,7 +298,7 @@ curl -X POST http://localhost:8000/tool/add_weight \
   -d '{"user_id":"test","weight":68.5,"source_text":"manual test"}'
 ```
 
-查询最近体重：
+Query the latest weight:
 
 ```bash
 curl -X POST http://localhost:8000/tool/get_latest_weight \
@@ -300,27 +306,27 @@ curl -X POST http://localhost:8000/tool/get_latest_weight \
   -d '{"user_id":"test"}'
 ```
 
-### 微信
+### WeChat
 
-发送：
+Send:
 
 ```text
 记录我的体重 68.5kg
 ```
 
-或者：
+Or:
 
 ```text
 最近一周体重统计
 ```
 
-## 查看数据库
+## Inspecting the Database
 
 ```bash
 sqlite3 ~/weight-bot/weight.db
 ```
 
-常用查询：
+Common queries:
 
 ```sql
 .headers on
@@ -337,30 +343,30 @@ ORDER BY id DESC
 LIMIT 20;
 ```
 
-退出：
+Exit:
 
 ```sql
 .quit
 ```
 
-也可以一行查：
+One-line query:
 
 ```bash
 sqlite3 -header -column ~/weight-bot/weight.db \
 'SELECT id, user_id, recorded_at, weight, unit, source_text, created_at FROM weight_records ORDER BY id DESC LIMIT 20;'
 ```
 
-## 常见问题
+## Troubleshooting
 
-| 问题 | 处理 |
+| Issue | Fix |
 | --- | --- |
-| FastAPI 起不来 | 看端口是否被占用：`lsof -i :8000` |
-| OpenClaw Gateway 不运行 | `openclaw gateway status`，必要时 `openclaw gateway restart` |
-| 工具插件没更新 | 重新跑 `bash deploy.sh`，再看 `openclaw plugins inspect weight-tools` |
-| `add_weight` 返回 body 不是对象 | 多半是旧插件还在跑，重新安装插件并重开 TUI session |
-| TUI 正常，微信返回 `reasoning_content` 400 | 在微信会话里发送 `/reset`，再重试；也可以发送 `/new` |
-| 图片无法识别 | 确认模型支持多模态，且 `image_recognition` 是 `true` |
-| 服务器内存不够 | 关闭 `image_recognition`，或加 swap / 升级内存 |
+| FastAPI does not start | Check whether port 8000 is occupied: `lsof -i :8000` |
+| OpenClaw Gateway is not running | Run `openclaw gateway status`, then `openclaw gateway restart` |
+| Tool plugin did not update | Run `bash deploy.sh`, then inspect with `openclaw plugins inspect weight-tools` |
+| `add_weight` says the request body is not an object | The old plugin is probably still loaded. Reinstall the plugin and start a fresh TUI session |
+| TUI works, but WeChat returns `reasoning_content` 400 | Send `/reset` in the WeChat chat and retry. `/new` also starts a fresh session |
+| Image recognition does not work | Confirm the model supports multimodal input and `image_recognition` is `true` |
+| Server memory is too small | Disable `image_recognition`, add swap, or upgrade RAM |
 
 ## License
 
