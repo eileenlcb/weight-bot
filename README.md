@@ -171,9 +171,33 @@ openclaw gateway restart
 openclaw plugins inspect weight-tools
 ```
 
-`inspect` should show the `weight-tools` plugin and its registered tools.
+`inspect` should show the `weight-tools` plugin and its registered tools. Version `2.1.0` and newer automatically injects the current OpenClaw sender into backend `user_id`; the model no longer sees or controls `user_id`.
 
-### 6. Configure the Agent Prompt
+### 6. Enable Multi-User WeChat Sessions
+
+If more than one person uses the same WeChat bot, isolate direct-message sessions by sender:
+
+```bash
+openclaw config set session.dmScope per-account-channel-peer
+openclaw gateway restart
+```
+
+When another WeChat user messages the bot for the first time, approve the pairing request:
+
+```bash
+openclaw pairing list openclaw-weixin
+openclaw pairing approve openclaw-weixin <CODE> --notify
+```
+
+The backend still uses one shared SQLite database, but records are separated by a generated `user_id`:
+
+```text
+<channel>:<account-id>:<sender-id>
+```
+
+Do not use `sessionId` for business data. `/new` and `/reset` create a new `sessionId`, while the trusted sender id remains tied to the WeChat user.
+
+### 7. Configure the Agent Prompt
 
 OpenClaw 2026.4.x injects workspace bootstrap files such as `AGENTS.md` into each new session. Put the bot instructions there instead of setting `agent.systemPrompt`.
 
@@ -218,6 +242,7 @@ cat > /tmp/weight-bot-agents.md <<'EOF'
 - 简洁、亲切、有活力
 - 适当使用 emoji
 - 体重和饮食数据要准确展示
+- 工具会自动绑定当前微信用户，不要编造或询问 user_id
 EOF
 
 if [ -f "$WORKSPACE/AGENTS.md" ]; then
@@ -326,6 +351,8 @@ If `plugin/index.ts` or `config.json` changed, reinstall the plugin and restart 
 ```bash
 curl -s http://localhost:8000/ | python3 -m json.tool
 ```
+
+Direct API calls still require `user_id`. OpenClaw tool calls inject it automatically from the current sender.
 
 Log a weight record:
 

@@ -1,4 +1,8 @@
-import type { OpenClawPluginApi, AnyAgentTool } from "openclaw/plugin-sdk";
+import type {
+  OpenClawPluginApi,
+  OpenClawPluginToolContext,
+  AnyAgentTool,
+} from "openclaw/plugin-sdk/plugin-entry";
 import { Type } from "@sinclair/typebox";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -36,13 +40,55 @@ async function callApi(path: string, body: Record<string, unknown>) {
   return await res.json();
 }
 
-function createWeightTools(): AnyAgentTool[] {
+function cleanIdPart(value: unknown, fallback: string): string {
+  const raw = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  const cleaned = raw.replace(/[^a-zA-Z0-9_.:@+-]/g, "_");
+  return cleaned.slice(0, 160) || fallback;
+}
+
+function getContextUserId(ctx: OpenClawPluginToolContext): string {
+  const channel = cleanIdPart(
+    ctx.deliveryContext?.channel ?? ctx.messageChannel,
+    "local"
+  );
+  const accountId = cleanIdPart(
+    ctx.deliveryContext?.accountId ?? ctx.agentAccountId,
+    "default"
+  );
+
+  if (ctx.requesterSenderId) {
+    return `${channel}:${accountId}:${cleanIdPart(
+      ctx.requesterSenderId,
+      "sender"
+    )}`;
+  }
+
+  if (ctx.sessionKey) {
+    return `${channel}:${accountId}:session:${cleanIdPart(
+      ctx.sessionKey,
+      "default"
+    )}`;
+  }
+
+  return `${channel}:${accountId}:default`;
+}
+
+function withContextUser(
+  params: Record<string, unknown> | undefined,
+  ctx: OpenClawPluginToolContext
+): Record<string, unknown> {
+  return {
+    ...(params ?? {}),
+    user_id: getContextUserId(ctx),
+  };
+}
+
+function createWeightTools(ctx: OpenClawPluginToolContext): AnyAgentTool[] {
   return [
     {
       name: "add_weight",
       description: "记录用户体重。当用户告诉你体重数据时调用此工具。",
       parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
         weight: Type.Number({ description: "体重数值，单位 kg" }),
         recorded_at: Type.Optional(
           Type.String({ description: "记录时间，ISO8601 格式；为空则用当前时间" })
@@ -53,7 +99,10 @@ function createWeightTools(): AnyAgentTool[] {
       }),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/add_weight", params);
+          const result = await callApi(
+            "/tool/add_weight",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -63,12 +112,13 @@ function createWeightTools(): AnyAgentTool[] {
     {
       name: "get_latest_weight",
       description: "获取用户最近一条体重记录。",
-      parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
-      }),
+      parameters: Type.Object({}),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_latest_weight", params);
+          const result = await callApi(
+            "/tool/get_latest_weight",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -80,14 +130,16 @@ function createWeightTools(): AnyAgentTool[] {
       description:
         "获取用户一段时间内的体重统计（平均、最高、最低、变化趋势）。",
       parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
         days: Type.Optional(
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
         ),
       }),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_weight_stats", params);
+          const result = await callApi(
+            "/tool/get_weight_stats",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -97,7 +149,10 @@ function createWeightTools(): AnyAgentTool[] {
   ];
 }
 
-function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
+function createMealTools(
+  imageEnabled: boolean,
+  ctx: OpenClawPluginToolContext
+): AnyAgentTool[] {
   const addMealDesc = imageEnabled
     ? "记录用户的一餐饮食。当用户发送食物图片或描述吃了什么时，分析食物内容，估算卡路里和营养成分，然后调用此工具记录。"
     : "记录用户的一餐饮食。当用户用文字描述吃了什么时，根据描述估算卡路里和营养成分，然后调用此工具记录。注意：图片识别功能未开启，如果用户发送了食物图片，请提醒用户用文字描述食物内容和大致份量。";
@@ -107,7 +162,6 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       name: "add_meal_record",
       description: addMealDesc,
       parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
         meal_type: Type.Optional(
           Type.String({
             description: "餐食类型: breakfast/lunch/dinner/snack/other",
@@ -153,7 +207,10 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       }),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/add_meal_record", params);
+          const result = await callApi(
+            "/tool/add_meal_record",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -165,14 +222,16 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       description:
         "获取用户某天的饮食记录和总热量摄入。查看今天或指定日期吃了什么、摄入了多少卡路里。",
       parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
         date: Type.Optional(
           Type.String({ description: "查询日期 YYYY-MM-DD，为空则查今天" })
         ),
       }),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_daily_calories", params);
+          const result = await callApi(
+            "/tool/get_daily_calories",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -184,14 +243,16 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
       description:
         "获取用户一段时间内的饮食统计（每日平均卡路里、最高最低、每日明细）。",
       parameters: Type.Object({
-        user_id: Type.String({ description: "用户唯一标识" }),
         days: Type.Optional(
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
         ),
       }),
       execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_meal_stats", params);
+          const result = await callApi(
+            "/tool/get_meal_stats",
+            withContextUser(params, ctx)
+          );
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -209,19 +270,26 @@ const plugin = {
   register(api: OpenClawPluginApi) {
     const config = loadConfig();
     const imageEnabled = isFeatureEnabled(config, "image_recognition");
+    const weightToolNames = [
+      "add_weight",
+      "get_latest_weight",
+      "get_weight_stats",
+    ];
+    const mealToolNames = [
+      "add_meal_record",
+      "get_daily_calories",
+      "get_meal_stats",
+    ];
 
-    const tools = createWeightTools();
-    for (const tool of tools) {
-      api.registerTool(tool as unknown as AnyAgentTool);
-    }
-
-    const mealTools = createMealTools(imageEnabled);
-    for (const tool of mealTools) {
-      api.registerTool(tool as unknown as AnyAgentTool);
-    }
+    api.registerTool((ctx) => createWeightTools(ctx), {
+      names: weightToolNames,
+    });
+    api.registerTool((ctx) => createMealTools(imageEnabled, ctx), {
+      names: mealToolNames,
+    });
 
     api.logger.info(
-      `Registered ${tools.length + mealTools.length} tools (image_recognition: ${imageEnabled ? "ON" : "OFF"})`
+      `Registered ${weightToolNames.length + mealToolNames.length} tools (image_recognition: ${imageEnabled ? "ON" : "OFF"})`
     );
   },
 };
