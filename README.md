@@ -89,6 +89,16 @@ openclaw gateway restart
 openclaw plugins inspect weight-tools
 ```
 
+## Troubleshooting
+
+If TUI works but WeChat replies with:
+
+```text
+400 The reasoning_content in the thinking mode must be passed back to the API.
+```
+
+Send `/reset` in the WeChat chat, then try again. `/new` also starts a fresh session. Reinstall the WeChat plugin only if resetting the session does not help.
+
 ## Running as a systemd Service
 
 ```bash

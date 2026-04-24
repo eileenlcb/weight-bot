@@ -350,6 +350,7 @@ WHERE recorded_at >= date('now');
 | 图片无法识别 | 确认 Qwen 3.5 Plus 模型已配置且支持多模态 |
 | FastAPI 启动失败 | 检查端口 8000 是否被占用：`lsof -i :8000` |
 | 饮食记录不生效 | 重启 Gateway：`openclaw gateway restart` |
+| TUI 正常但微信返回 `reasoning_content` 400 | 在微信会话里发送 `/reset`，再重试；也可以用 `/new` 开新会话 |
 
 ---
 
