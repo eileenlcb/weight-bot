@@ -70,6 +70,25 @@ openclaw gateway restart
 
 Verify with `openclaw plugins inspect weight-tools`.
 
+To update an existing local plugin install:
+
+```bash
+cd ~/weight-bot
+git pull --ff-only origin main
+
+rm -rf ~/weight-tools-plugin
+cp -R ~/weight-bot/plugin ~/weight-tools-plugin
+cp ~/weight-bot/config.json ~/weight-tools-plugin/config.json
+
+cd ~/weight-tools-plugin
+npm install
+
+openclaw plugins uninstall weight-tools --keep-files || true
+openclaw plugins install -l ~/weight-tools-plugin
+openclaw gateway restart
+openclaw plugins inspect weight-tools
+```
+
 ## Running as a systemd Service
 
 ```bash

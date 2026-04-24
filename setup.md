@@ -176,6 +176,34 @@ openclaw plugins inspect weight-tools
 openclaw gateway restart
 ```
 
+### 5. 更新已有插件
+
+如果改了 `plugin/index.ts`，先拉最新代码，再清掉旧插件记录重新安装。
+
+```bash
+cd ~/weight-bot
+git pull --ff-only origin main
+
+grep -n "version" ~/weight-bot/plugin/package.json ~/weight-bot/plugin/openclaw.plugin.json
+grep -n "execute: async (_id" ~/weight-bot/plugin/index.ts
+
+rm -rf ~/weight-tools-plugin
+cp -R ~/weight-bot/plugin ~/weight-tools-plugin
+cp ~/weight-bot/config.json ~/weight-tools-plugin/config.json
+
+cd ~/weight-tools-plugin
+npm install
+
+openclaw plugins uninstall weight-tools --keep-files || true
+openclaw plugins install -l ~/weight-tools-plugin
+openclaw gateway restart
+
+openclaw plugins list --enabled --verbose
+openclaw plugins inspect weight-tools
+```
+
+`inspect` 里确认插件版本和 source 是刚安装的目录。如果 TUI 里还在报旧错，重开当前 TUI session 后再试。
+
 ---
 
 ## 七、功能配置（config.json）
