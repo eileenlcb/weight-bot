@@ -171,7 +171,7 @@ openclaw gateway restart
 openclaw plugins inspect weight-tools
 ```
 
-`inspect` should show the `weight-tools` plugin and its registered tools. Version `2.1.0` and newer automatically injects the current OpenClaw sender into backend `user_id`; the model no longer sees or controls `user_id`.
+`inspect` should show the `weight-tools` plugin and its registered tools. Version `2.1.1` and newer automatically injects the current WeChat peer id into backend `user_id`; the model no longer sees or controls `user_id`.
 
 ### 6. Enable Multi-User WeChat Sessions
 
@@ -189,10 +189,10 @@ openclaw pairing list openclaw-weixin
 openclaw pairing approve openclaw-weixin <CODE> --notify
 ```
 
-The backend still uses one shared SQLite database, but records are separated by a generated `user_id`:
+The backend still uses one shared SQLite database, but records are separated by the WeChat peer id:
 
 ```text
-<channel>:<account-id>:<sender-id>
+o9cq808X9lejkB_0Kgc04rbthyXo@im.wechat
 ```
 
 Do not use `sessionId` for business data. `/new` and `/reset` create a new `sessionId`, while the trusted sender id remains tied to the WeChat user.

@@ -46,6 +46,14 @@ function cleanIdPart(value: unknown, fallback: string): string {
   return cleaned.slice(0, 160) || fallback;
 }
 
+function extractPeerIdFromSessionKey(sessionKey?: string): string | undefined {
+  if (!sessionKey) {
+    return undefined;
+  }
+  const match = sessionKey.match(/:direct:([^:]+)$/);
+  return match?.[1];
+}
+
 function getContextUserId(ctx: OpenClawPluginToolContext): string {
   const channel = cleanIdPart(
     ctx.deliveryContext?.channel ?? ctx.messageChannel,
@@ -61,6 +69,11 @@ function getContextUserId(ctx: OpenClawPluginToolContext): string {
       ctx.requesterSenderId,
       "sender"
     )}`;
+  }
+
+  const peerId = extractPeerIdFromSessionKey(ctx.sessionKey);
+  if (peerId) {
+    return cleanIdPart(peerId, "sender");
   }
 
   if (ctx.sessionKey) {
