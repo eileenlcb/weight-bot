@@ -177,12 +177,20 @@ openclaw plugins inspect weight-tools
 
 OpenClaw 2026.4.x injects workspace bootstrap files such as `AGENTS.md` into each new session. Put the bot instructions there instead of setting `agent.systemPrompt`.
 
+Put this block near the top of `AGENTS.md`. If the file is long and the block is appended at the bottom, it may be truncated before it reaches the model.
+
 This prompt is intentionally Chinese because the WeChat bot is expected to talk to Chinese users.
 
 ```bash
-mkdir -p ~/.openclaw/workspace
+WORKSPACE="$(openclaw config get agents.defaults.workspace | tail -n 1)"
+WORKSPACE="${WORKSPACE/#\~/$HOME}"
+mkdir -p "$WORKSPACE"
 
-cat >> ~/.openclaw/workspace/AGENTS.md <<'EOF'
+if [ -f "$WORKSPACE/AGENTS.md" ]; then
+  cp "$WORKSPACE/AGENTS.md" "$WORKSPACE/AGENTS.md.bak.$(date +%Y%m%d%H%M%S)"
+fi
+
+cat > /tmp/weight-bot-agents.md <<'EOF'
 
 ## 王大娇体重助手
 
@@ -211,6 +219,13 @@ cat >> ~/.openclaw/workspace/AGENTS.md <<'EOF'
 - 适当使用 emoji
 - 体重和饮食数据要准确展示
 EOF
+
+if [ -f "$WORKSPACE/AGENTS.md" ]; then
+  cat /tmp/weight-bot-agents.md "$WORKSPACE/AGENTS.md" > "$WORKSPACE/AGENTS.md.new"
+  mv "$WORKSPACE/AGENTS.md.new" "$WORKSPACE/AGENTS.md"
+else
+  mv /tmp/weight-bot-agents.md "$WORKSPACE/AGENTS.md"
+fi
 
 openclaw gateway restart
 ```
