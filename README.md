@@ -318,7 +318,8 @@ cp ~/weight-bot/config.json ~/weight-tools-plugin/config.json
 cd ~/weight-tools-plugin
 npm install
 
-openclaw plugins uninstall weight-tools --keep-files || true
+openclaw plugins uninstall weight-tools || true
+rm -rf ~/.openclaw/extensions/weight-tools
 openclaw plugins install -l ~/weight-tools-plugin
 openclaw gateway restart
 

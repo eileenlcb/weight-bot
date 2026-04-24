@@ -30,7 +30,8 @@ cp -R plugin ~/weight-tools-plugin
 cp config.json ~/weight-tools-plugin/config.json
 cd ~/weight-tools-plugin
 npm install --silent
-openclaw plugins uninstall weight-tools --keep-files >/dev/null 2>&1 || true
+openclaw plugins uninstall weight-tools >/dev/null 2>&1 || true
+rm -rf ~/.openclaw/extensions/weight-tools
 openclaw plugins install -l ~/weight-tools-plugin
 
 echo "[5/6] Restarting FastAPI service..."
