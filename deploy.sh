@@ -6,7 +6,7 @@ echo "=== Weight Bot Deploy Script ==="
 cd ~/weight-bot
 
 echo "[1/6] Pulling latest code..."
-git pull
+git pull --ff-only origin main
 
 echo "[2/6] Checking config..."
 if [ ! -f config.json ]; then
@@ -18,14 +18,19 @@ cat config.json
 echo ""
 
 echo "[3/6] Installing Python dependencies..."
+if [ ! -d venv ]; then
+    python3 -m venv venv
+fi
 source venv/bin/activate
 pip install -q -r requirements.txt
 
 echo "[4/6] Updating OpenClaw plugin..."
-cp plugin/* ~/weight-tools-plugin/
-cp config.json ~/weight-tools-plugin/
+rm -rf ~/weight-tools-plugin
+cp -R plugin ~/weight-tools-plugin
+cp config.json ~/weight-tools-plugin/config.json
 cd ~/weight-tools-plugin
 npm install --silent
+openclaw plugins uninstall weight-tools --keep-files >/dev/null 2>&1 || true
 openclaw plugins install -l ~/weight-tools-plugin
 
 echo "[5/6] Restarting FastAPI service..."
