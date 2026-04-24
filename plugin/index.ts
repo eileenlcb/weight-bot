@@ -51,9 +51,9 @@ function createWeightTools(): AnyAgentTool[] {
           Type.String({ description: "用户原始输入文本" })
         ),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/add_weight", args);
+          const result = await callApi("/tool/add_weight", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -66,9 +66,9 @@ function createWeightTools(): AnyAgentTool[] {
       parameters: Type.Object({
         user_id: Type.String({ description: "用户唯一标识" }),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_latest_weight", args);
+          const result = await callApi("/tool/get_latest_weight", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -85,9 +85,9 @@ function createWeightTools(): AnyAgentTool[] {
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
         ),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_weight_stats", args);
+          const result = await callApi("/tool/get_weight_stats", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -151,9 +151,9 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
           Type.String({ description: "记录时间，ISO8601 格式；为空则用当前时间" })
         ),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/add_meal_record", args);
+          const result = await callApi("/tool/add_meal_record", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -170,9 +170,9 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
           Type.String({ description: "查询日期 YYYY-MM-DD，为空则查今天" })
         ),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_daily_calories", args);
+          const result = await callApi("/tool/get_daily_calories", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
@@ -189,9 +189,9 @@ function createMealTools(imageEnabled: boolean): AnyAgentTool[] {
           Type.Integer({ description: "统计最近多少天，1-365", default: 7 })
         ),
       }),
-      execute: async (args: Record<string, unknown>) => {
+      execute: async (_id: string, params: Record<string, unknown>) => {
         try {
-          const result = await callApi("/tool/get_meal_stats", args);
+          const result = await callApi("/tool/get_meal_stats", params);
           return { result: "success", details: result };
         } catch (err) {
           return { result: "error", error: String(err) };
