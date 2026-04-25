@@ -76,6 +76,12 @@ Recommended setup choices:
 - Auth: `Standard API Key`
 - Model: `Qwen 3.5 Plus`
 
+OpenClaw 2026.4.2 may expose Qwen/DashScope models under the provider id `modelstudio` instead of `qwen`. If `openclaw models list --all --provider qwen` returns no models, check `modelstudio`:
+
+```bash
+openclaw models list --all --provider modelstudio
+```
+
 Install and start the Gateway:
 
 ```bash
@@ -91,6 +97,83 @@ Expected status:
 ```text
 Runtime: running
 RPC probe: ok
+```
+
+### 2.1. Configure Text and Image Models
+
+This bot works best with a fast text model for normal chat/tool calls and a multimodal model for food images.
+
+Recommended routing:
+
+```text
+Text/tool model : deepseek/deepseek-v4-flash
+Image model     : modelstudio/qwen3.5-plus
+```
+
+Verify DeepSeek:
+
+```bash
+openclaw models list --all --provider deepseek
+```
+
+If DeepSeek is not configured yet, add its API key first:
+
+```bash
+openclaw onboard --auth-choice deepseek-api-key
+```
+
+Verify Qwen/DashScope through `modelstudio`:
+
+```bash
+openclaw models list --all --provider modelstudio
+openclaw models status --probe --probe-provider modelstudio
+```
+
+`modelstudio/qwen3.5-plus` should show `text+image` in the `Input` column and probe as `ok`.
+
+Set the models:
+
+```bash
+openclaw models set deepseek/deepseek-v4-flash
+openclaw models set-image modelstudio/qwen3.5-plus
+openclaw gateway restart
+openclaw models status
+```
+
+Expected status:
+
+```text
+Default     : deepseek/deepseek-v4-flash
+Image model : modelstudio/qwen3.5-plus
+```
+
+Disable DeepSeek thinking mode for this bot. It avoids `reasoning_content` API errors and prevents reasoning text from leaking into WeChat replies.
+
+```bash
+openclaw config set agents.defaults.thinkingDefault off
+openclaw gateway restart
+```
+
+For `deepseek-v4-flash`, also set a per-model disabled thinking payload:
+
+```bash
+CFG="$HOME/.openclaw/openclaw.json"
+cp "$CFG" "$CFG.bak.$(date +%Y%m%d%H%M%S)"
+
+jq '
+  .agents.defaults.thinkingDefault = "off"
+  | .agents.defaults.models["deepseek/deepseek-v4-flash"].params.thinking = {"type":"disabled"}
+' "$CFG" > /tmp/openclaw.json && mv /tmp/openclaw.json "$CFG"
+
+openclaw gateway restart
+```
+
+Then reset each WeChat session once:
+
+```text
+/reasoning:off
+/think:off
+/reset
 ```
 
 ### 3. Connect WeChat
@@ -423,14 +506,206 @@ sqlite3 -header -column ~/weight-bot/weight.db \
 
 ## Troubleshooting
 
+### OpenClaw Model Routing
+
+Check the active model setup:
+
+```bash
+openclaw models status
+```
+
+For the current recommended setup, the important lines are:
+
+```text
+Default     : deepseek/deepseek-v4-flash
+Image model : modelstudio/qwen3.5-plus
+```
+
+To confirm whether a model can read images, inspect the `Input` column:
+
+```bash
+openclaw models list --all --provider modelstudio
+```
+
+Only models with `image` or `text+image` can inspect uploaded pictures. Text-only models such as `deepseek/deepseek-v4-flash` cannot see food images directly.
+
+If `qwen` shows no models:
+
+```bash
+openclaw models list --all --provider qwen
+```
+
+but `modelstudio` shows Qwen models:
+
+```bash
+openclaw models list --all --provider modelstudio
+```
+
+use `modelstudio/qwen3.5-plus` as the image model. On OpenClaw 2026.4.2, Qwen/DashScope may be exposed through `modelstudio`.
+
+### Confirming Image Requests Use Qwen
+
+The config-level check is:
+
+```bash
+openclaw models status
+```
+
+If it shows `Image model : modelstudio/qwen3.5-plus`, image messages should route there.
+
+If `openclaw logs --follow` fails with `pairing required`, read the local log file or systemd logs instead:
+
+```bash
+tail -f /tmp/openclaw/openclaw-$(date +%F).log | grep -Ei 'modelstudio|qwen3\.5|image|provider|model'
+```
+
+or:
+
+```bash
+journalctl -u openclaw-gateway.service -f | grep -Ei 'modelstudio|qwen3\.5|image|provider|model'
+```
+
+Then send a food image from WeChat and look for `modelstudio/qwen3.5-plus`.
+
+### `reasoning_content` 400 with DeepSeek V4 Flash
+
+Error:
+
+```text
+400 The `reasoning_content` in the thinking mode must be passed back to the API.
+```
+
+This is usually a DeepSeek thinking-mode compatibility issue, not a Weight Bot API problem. It can happen after a tool call or on the next message in the same session.
+
+Disable thinking globally:
+
+```bash
+openclaw config set agents.defaults.thinkingDefault off
+openclaw gateway restart
+```
+
+Also force `deepseek-v4-flash` to send `thinking: disabled`:
+
+```bash
+CFG="$HOME/.openclaw/openclaw.json"
+cp "$CFG" "$CFG.bak.$(date +%Y%m%d%H%M%S)"
+
+jq '
+  .agents.defaults.thinkingDefault = "off"
+  | .agents.defaults.models["deepseek/deepseek-v4-flash"].params.thinking = {"type":"disabled"}
+' "$CFG" > /tmp/openclaw.json && mv /tmp/openclaw.json "$CFG"
+
+openclaw gateway restart
+```
+
+Then reset the WeChat session:
+
+```text
+/think:off
+/reset
+```
+
+Check the session state:
+
+```text
+/think
+```
+
+Expected:
+
+```text
+Current thinking level: off.
+```
+
+### `Reasoning:` Appears in WeChat Replies
+
+If WeChat shows a block like this:
+
+```text
+Reasoning:
+The user is asking...
+```
+
+there are two possible causes.
+
+If OpenClaw is intentionally showing reasoning, turn it off in the WeChat session:
+
+```text
+/reasoning:off
+/reset
+```
+
+Check:
+
+```text
+/reasoning
+```
+
+Expected:
+
+```text
+Current reasoning level: off.
+```
+
+OpenClaw 2026.4.2 does not accept `agents.defaults.reasoningDefault` in `openclaw.json`. Do not add this field. If it was added by mistake, remove it:
+
+```bash
+CFG="$HOME/.openclaw/openclaw.json"
+
+jq 'del(.agents.defaults.reasoningDefault)' "$CFG" > /tmp/openclaw.json \
+  && mv /tmp/openclaw.json "$CFG"
+
+openclaw gateway restart
+```
+
+If `/reasoning` and `/think` both say `off`, but replies still contain `Reasoning:`, the model is likely putting reasoning text into normal message content. Keep the per-model `thinking: disabled` config above. If it still happens, switch the text model to the non-thinking DeepSeek surface:
+
+```bash
+openclaw models set deepseek/deepseek-chat
+openclaw models set-image modelstudio/qwen3.5-plus
+openclaw gateway restart
+```
+
+### OpenClaw 2026.4.2 CLI Differences
+
+Some docs mention `openclaw config set ... --merge`, but OpenClaw 2026.4.2 may not support `--merge`.
+
+Instead, edit `~/.openclaw/openclaw.json` with `jq`, keep a backup, and restart Gateway:
+
+```bash
+CFG="$HOME/.openclaw/openclaw.json"
+cp "$CFG" "$CFG.bak.$(date +%Y%m%d%H%M%S)"
+
+jq '<filter here>' "$CFG" > /tmp/openclaw.json && mv /tmp/openclaw.json "$CFG"
+openclaw gateway restart
+```
+
+If Gateway refuses to start, validate the config error first:
+
+```bash
+openclaw gateway restart
+openclaw doctor
+```
+
+Common example:
+
+```text
+agents.defaults: Unrecognized key: "reasoningDefault"
+```
+
+Remove the bad key and restart.
+
+### Quick Reference
+
 | Issue | Fix |
 | --- | --- |
 | FastAPI does not start | Check whether port 8000 is occupied: `lsof -i :8000` |
 | OpenClaw Gateway is not running | Run `openclaw gateway status`, then `openclaw gateway restart` |
 | Tool plugin did not update | Run `bash deploy.sh`, then inspect with `openclaw plugins inspect weight-tools` |
 | `add_weight` says the request body is not an object | The old plugin is probably still loaded. Reinstall the plugin and start a fresh TUI session |
-| TUI works, but WeChat returns `reasoning_content` 400 | Send `/reset` in the WeChat chat and retry. `/new` also starts a fresh session |
-| Image recognition does not work | Confirm the model supports multimodal input and `image_recognition` is `true` |
+| TUI works, but WeChat returns `reasoning_content` 400 | Disable thinking, restart Gateway, then send `/think:off` and `/reset` in WeChat |
+| WeChat replies include `Reasoning:` | Send `/reasoning:off`, `/think:off`, and `/reset`; if it continues, switch text model to `deepseek/deepseek-chat` |
+| Image recognition does not work | Confirm the image model has `text+image` input and `image_recognition` is `true` |
 | Server memory is too small | Disable `image_recognition`, add swap, or upgrade RAM |
 
 ## License
